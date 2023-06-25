@@ -38,9 +38,18 @@ export default function Home() {
   const { data: expiration } = useContractRead(contract, "expiration");
   const { mutateAsync: BuyTickets } = useContractWrite(contract, "BuyTickets");
   const { data: tickets } = useContractRead(contract, "getTickets");
+  const { data: winnings } = useContractRead(
+    contract,
+    "getWinningsForAddress",
+    [address]
+  );
+  const { mutateAsync: WithdrawWinnings } = useContractWrite(contract, "WithdrawWinnings")
 
   useEffect(() => {
-    if (!tickets) return;
+    if (!tickets) {
+      setUserTickets(0)
+      return
+    }
 
     const totalTickets: string[] = tickets;
 
@@ -82,6 +91,25 @@ export default function Home() {
     }
   };
 
+  const onWithdrawWinning = async() => {
+    const notification = toast.loading("Withdrawing winnings...");
+
+    try {
+    const data = await WithdrawWinnings({})
+      
+
+    toast.success("Winning withdrawn successfull", {
+      id: notification
+    })
+    console.log(data)
+    } catch (error) {
+      toast.error("Whoops something went wrong!", {
+        id: notification
+      })
+      console.error("Contract call failur", error)
+    }
+  }
+
   if (isLoading) return <Loading />;
   if (!address) return <Login />;
 
@@ -95,6 +123,18 @@ export default function Home() {
       <div className="flex-1">
         <Header />
 
+        {winnings > 0 && (
+          <div className="text-white max-w-md md:max-w-2xl lg:max-w-4xl mx-auto mt-5">
+            <button onClick={onWithdrawWinning} className="p-t bg-gradient-to-b from-orange-500 to-emerald-600 animate-pulse text-center rounded-xl w-full">
+              <p className="font-bold">Yes You Are Winner</p>
+              <p className="font-semibold">
+                Total Winnings: {ethers.utils.formatEther(winnings.toString())}{" "}
+                {currency}
+              </p>
+              <p className="font-semibold"> Click here to withdraw</p>
+            </button>
+          </div>
+        )}
         {/* Next Draw Box */}
         <div className="space-y-5 md:space-y-0 m-5 md:flex md:flex-row justify-center items-start md:space-x-5 ">
           <div className="stats-container ">
@@ -187,7 +227,9 @@ export default function Home() {
 
             {userTickets > 0 && (
               <div className="stats">
-                <p className="text-lg mb-2">You have {userTickets} Tickets in this draw</p>
+                <p className="text-lg mb-2">
+                  You have {userTickets} Tickets in this draw
+                </p>
                 <div className="flex max-w-sm flex-wrap gap-x-2 gap-y-2">
                   {Array(userTickets)
                     .fill("")
