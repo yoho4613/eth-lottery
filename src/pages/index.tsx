@@ -14,6 +14,8 @@ import { ethers } from "ethers";
 import { currency } from "../../constants";
 import CountdownTimer from "@/components/CountdownTimer";
 import toast from "react-hot-toast";
+import Marquee from "react-fast-marquee";
+import AdminControls from "@/components/AdminControls";
 
 export default function Home() {
   const address = useAddress();
@@ -43,12 +45,21 @@ export default function Home() {
     "getWinningsForAddress",
     [address]
   );
-  const { mutateAsync: WithdrawWinnings } = useContractWrite(contract, "WithdrawWinnings")
+  const { mutateAsync: WithdrawWinnings } = useContractWrite(
+    contract,
+    "WithdrawWinnings"
+  );
+  const { data: lastWinner } = useContractRead(contract, "lastWinner");
+  const { data: lastWinnerAmount } = useContractRead(
+    contract,
+    "lastWinnerAmount"
+  );
+  const {data: isLotteryOperator} = useContractRead(contract, "lotteryOperator")
 
   useEffect(() => {
     if (!tickets) {
-      setUserTickets(0)
-      return
+      setUserTickets(0);
+      return;
     }
 
     const totalTickets: string[] = tickets;
@@ -68,14 +79,8 @@ export default function Home() {
 
     try {
       const data = await BuyTickets({
-        value: [
-          ethers.utils
-            .parseEther(
-              (
-                Number(ethers.utils.formatEther(ticketPrice)) * quantity
-              ).toString()
-            )
-            .toString(),
+        args: [
+          { value: Number(ethers.utils.formatEther(ticketPrice)) * quantity },
         ],
       });
 
@@ -91,24 +96,23 @@ export default function Home() {
     }
   };
 
-  const onWithdrawWinning = async() => {
+  const onWithdrawWinning = async () => {
     const notification = toast.loading("Withdrawing winnings...");
 
     try {
-    const data = await WithdrawWinnings({})
-      
+      const data = await WithdrawWinnings({});
 
-    toast.success("Winning withdrawn successfull", {
-      id: notification
-    })
-    console.log(data)
+      toast.success("Winning withdrawn successfull", {
+        id: notification,
+      });
+      console.log(data);
     } catch (error) {
       toast.error("Whoops something went wrong!", {
-        id: notification
-      })
-      console.error("Contract call failur", error)
+        id: notification,
+      });
+      console.error("Contract call failur", error);
     }
-  }
+  };
 
   if (isLoading) return <Loading />;
   if (!address) return <Login />;
@@ -122,10 +126,30 @@ export default function Home() {
 
       <div className="flex-1">
         <Header />
+        <Marquee className="bg-[#0A1F1C] p-t mb-5" gradient={false} speed={100}>
+          <div className="flex space-x-2 mx-10 text-white">
+            <h4 className="font-bold">Last Winner: {lastWinner?.toString()}</h4>
+            <p className="font-bold">
+              Previous winnings:{" "}
+              {lastWinnerAmount &&
+                ethers.utils.formatEther(lastWinnerAmount?.toString())}{" "}
+              {currency}
+            </p>
+          </div>
+        </Marquee>
+
+        {isLotteryOperator === address && (
+          <div className="flex justify-center">
+            <AdminControls />
+          </div>
+        )}
 
         {winnings > 0 && (
           <div className="text-white max-w-md md:max-w-2xl lg:max-w-4xl mx-auto mt-5">
-            <button onClick={onWithdrawWinning} className="p-t bg-gradient-to-b from-orange-500 to-emerald-600 animate-pulse text-center rounded-xl w-full">
+            <button
+              onClick={onWithdrawWinning}
+              className="p-t bg-gradient-to-b from-orange-500 to-emerald-600 animate-pulse text-center rounded-xl w-full"
+            >
               <p className="font-bold">Yes You Are Winner</p>
               <p className="font-semibold">
                 Total Winnings: {ethers.utils.formatEther(winnings.toString())}{" "}
